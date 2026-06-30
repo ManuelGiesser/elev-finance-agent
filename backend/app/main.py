@@ -1,21 +1,34 @@
 from fastapi import FastAPI
-from config import settings
+from app.config.settings import settings
+from app.config.logging import setup_logging, logger
+from app.database.connection import check_database
 
-app = FastAPI(title=settings.project_name)
+setup_logging()
+
+app = FastAPI(title=settings.project_name, version="0.2.0")
+
+
+@app.on_event("startup")
+def on_startup():
+    logger.info("Starting %s", settings.project_name)
 
 
 @app.get("/")
 def root():
     return {
         "name": settings.project_name,
-        "version": "0.1.0",
+        "version": "0.2.0",
+        "environment": settings.environment,
         "status": "running",
     }
 
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "database": check_database(),
+    }
 
 
 @app.get("/config/status")
