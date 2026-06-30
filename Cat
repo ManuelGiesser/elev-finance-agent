@@ -1,0 +1,265 @@
+cat > setup_starter.sh <<'EOF'
+#!/bin/bash
+set -e
+
+mkdir -p db/init services/api/app services/worker/app services/mcp/app services/dashboard/app data
+
+cat > docker-compose.yml <<'YAML'
+services:
+  api:
+    build: ./services/api
+    container_name: elev_api
+    env_file: .env
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+
+  worker:
+    build: ./services/worker
+    container_name: elev_worker
+    env_file: .env
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+
+  mcp:
+    build: ./services/mcp
+    container_name: elev_mcp
+    env_file: .env
+    ports:
+      - "${MCP_PORT:-8010}:8010"
+    restart: unless-stopped
+
+  dashboard:
+    build: ./services/dashboard
+    container_name: elev_dashboard
+    env_file: .env
+    environment:
+      API_URL: http://api:8000
+    ports:
+      - "${DASHBOARD_PORT:-8501}:8501"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16
+    container_name: elev_postgres
+    env_file: .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-elev_finance}
+      POSTGRES_USER: ${POSTGRES_USER:-elev}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: elev_redis
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+YAML
+
+cat > .env.example <<'ENV'
+PROJECT_NAME=ELEV Finance Agent
+API_PORT=8000
+MCP_PORT=8010
+DASHBOARD_PORT=8501
+
+POSTGRES_DB=elev_finance
+POSTGRES_USER=elev
+POSTGRES_PASSWORD=BITTE_AENDERN
+DATABASE_URL=postgresql://elev:BITTE_AENDERN@postgres:5432/elev_finance
+REDIS_URL=redis://redis:6379/0
+
+GOOGLE_DRIVE_FF_FOLDER_ID=1RVDYcVhd6XIXw3ESVyDxYoJOlvdTao59
+GOOGLE_DRIVE_BELEGE_FOLDER_ID=1EJ0GFArYXrWWo6U9SG0f2dAQg4w4rvsZ
+HOSTINGER_MAILBOX_ID=
+OPENAI_API_KEY=
+ENV
+
+cp .env.example .env
+
+cat > db/init/001_schema.sql <<'SQL'
+CREATE TABLE IF NOT EXISTS transactions (
+    id SERIAL PRIMARY KEY,
+    booking_date DATE,
+    amount NUMERIC(12,2),
+    currency TEXT DEFAULT 'EUR',
+    vendor TEXT,
+    booking_text TEXT,
+    status TEXT DEFAULT 'open',
+    confidence NUMERIC(5,2),
+    receipt_id INTEGER,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS receipts (
+    id SERIAL PRIMARY KEY,
+    source TEXT,
+    source_id TEXT,
+    original_filename TEXT,
+    current_filename TEXT,
+    file_url TEXT,
+    file_path TEXT,
+    receipt_date DATE,
+    amount NUMERIC(12,2),
+    currency TEXT DEFAULT 'EUR',
+    vendor TEXT,
+    ocr_text TEXT,
+    status TEXT DEFAULT 'new',
+    duplicate_of INTEGER,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS cases (
+    id SERIAL PRIMARY KEY,
+    transaction_id INTEGER REFERENCES transactions(id),
+    category TEXT,
+    status TEXT DEFAULT 'open',
+    last_checked_at TIMESTAMP,
+    next_step TEXT,
+    due_at TIMESTAMP,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS vendors (
+    id SERIAL PRIMARY KEY,
+    name TEXT UNIQUE,
+    category TEXT,
+    email TEXT,
+    website TEXT,
+    invoice_portal TEXT,
+    search_terms TEXT,
+    source_confidence TEXT DEFAULT 'unverified',
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+SQL
+
+cat > services/api/Dockerfile <<'EOF2'
+FROM python:3.12-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY app ./app
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+EOF2
+
+cat > services/api/requirements.txt <<'EOF2'
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+psycopg2-binary==2.9.10
+EOF2
+
+cat > services/api/app/main.py <<'EOF2'
+from fastapi import FastAPI
+
+app = FastAPI(title="ELEV Finance Agent API", version="0.1.0")
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "service": "api"}
+
+@app.get("/dashboard/summary")
+def dashboard_summary():
+    return {
+        "transactions_open": 0,
+        "receipts_new": 0,
+        "cases_open": 0,
+        "cases_overdue": 0,
+        "message": "ELEV Finance Agent läuft."
+    }
+EOF2
+
+cat > services/worker/Dockerfile <<'EOF2'
+FROM python:3.12-slim
+WORKDIR /app
+COPY app ./app
+CMD ["python", "-m", "app.worker"]
+EOF2
+
+cat > services/worker/app/worker.py <<'EOF2'
+import time
+print("ELEV worker started", flush=True)
+while True:
+    time.sleep(60)
+EOF2
+
+cat > services/mcp/Dockerfile <<'EOF2'
+FROM python:3.12-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY app ./app
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8010"]
+EOF2
+
+cat > services/mcp/requirements.txt <<'EOF2'
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+EOF2
+
+cat > services/mcp/app/main.py <<'EOF2'
+from fastapi import FastAPI
+
+app = FastAPI(title="ELEV Finance Agent MCP Bridge", version="0.1.0")
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "service": "mcp"}
+
+@app.get("/tools")
+def tools():
+    return {"tools": ["find_receipt", "match_transaction", "move_receipt"], "status": "placeholder"}
+EOF2
+
+cat > services/dashboard/Dockerfile <<'EOF2'
+FROM python:3.12-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY app ./app
+CMD ["streamlit", "run", "app/dashboard.py", "--server.address=0.0.0.0", "--server.port=8501"]
+EOF2
+
+cat > services/dashboard/requirements.txt <<'EOF2'
+streamlit==1.41.1
+requests==2.32.3
+EOF2
+
+cat > services/dashboard/app/dashboard.py <<'EOF2'
+import os, requests, streamlit as st
+API_URL = os.getenv("API_URL", "http://api:8000")
+st.set_page_config(page_title="ELEV Finance Agent", layout="wide")
+st.title("ELEV Finance Agent")
+summary = requests.get(f"{API_URL}/dashboard/summary", timeout=5).json()
+cols = st.columns(4)
+cols[0].metric("Offene Buchungen", summary.get("transactions_open", 0))
+cols[1].metric("Neue Belege", summary.get("receipts_new", 0))
+cols[2].metric("Offene Vorgänge", summary.get("cases_open", 0))
+cols[3].metric("Überfällig", summary.get("cases_overdue", 0))
+st.json(summary)
+EOF2
+
+cat > README.md <<'MD'
+# ELEV Finance Agent
+
+Start:
+
+```bash
+cp .env.example .env
+docker compose up -d --build
+curl http://localhost:8000/health
