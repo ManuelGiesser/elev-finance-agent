@@ -1,0 +1,28 @@
+services:
+  api:
+    image: tiangolo/uvicorn-gunicorn-fastapi:python3.11
+    container_name: elev_api
+    ports:
+      - "8000:80"
+    volumes:
+      - ./api:/app
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16
+    container_name: elev_postgres
+    environment:
+      POSTGRES_DB: elev_finance
+      POSTGRES_USER: elev
+      POSTGRES_PASSWORD: bitte_aendern
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: elev_redis
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
