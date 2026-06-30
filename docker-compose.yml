@@ -2,6 +2,8 @@ services:
   api:
     build: ./backend
     container_name: elev_api
+    env_file:
+      - .env
     ports:
       - "8000:80"
     depends_on:
