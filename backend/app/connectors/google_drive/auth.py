@@ -1,15 +1,15 @@
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
+from app.config.settings import settings
+
 
 class GoogleDriveAuth:
 
-    def __init__(self, credentials_file: str):
-        self.credentials_file = credentials_file
-
-    def service(self):
+    @staticmethod
+    def service():
         credentials = service_account.Credentials.from_service_account_file(
-            self.credentials_file,
+            settings.google_application_credentials,
             scopes=["https://www.googleapis.com/auth/drive.readonly"],
         )
 

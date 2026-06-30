@@ -1,8 +1,12 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from app.config.settings import settings
+from app.connectors.google_drive.service import GoogleDriveService
 
-router = APIRouter(prefix="/google-drive", tags=["google-drive"])
+router = APIRouter(
+    prefix="/google-drive",
+    tags=["Google Drive"],
+)
 
 
 @router.get("/status")
@@ -16,11 +20,20 @@ def google_drive_status():
 
 @router.get("/files")
 def google_drive_files():
+
+    if not settings.google_drive_enabled:
+        raise HTTPException(
+            status_code=400,
+            detail="Google Drive connector disabled.",
+        )
+
+    service = GoogleDriveService()
+
     return {
-        "status": "not_connected_yet",
-        "message": "Google Drive credentials are not configured yet.",
-        "folders": {
-            "ff": settings.google_drive_ff_folder_id,
-            "belege": settings.google_drive_belege_folder_id,
-        },
+        "finanzfluss": service.list_files(
+            settings.google_drive_ff_folder_id
+        ),
+        "belege": service.list_files(
+            settings.google_drive_belege_folder_id
+        ),
     }
