@@ -11,18 +11,19 @@ def env_bool(name: str, default: bool = False) -> bool:
 
 
 class Settings:
+    project_name = os.getenv("PROJECT_NAME", "ELEV Finance Agent")
 
-    # Projekt
-    project_name = os.getenv(
-        "PROJECT_NAME",
-        "ELEV Finance Agent",
+    database_url = os.getenv(
+        "DATABASE_URL",
+        "postgresql://elev:bitte_aendern@postgres:5432/elev_finance",
     )
 
-    # Google Drive
-    google_drive_enabled = env_bool(
-        "GOOGLE_DRIVE_ENABLED",
-        True,
+    redis_url = os.getenv(
+        "REDIS_URL",
+        "redis://redis:6379/0",
     )
+
+    google_drive_enabled = env_bool("GOOGLE_DRIVE_ENABLED", True)
 
     google_drive_ff_folder_id = os.getenv(
         "GOOGLE_DRIVE_FF_FOLDER_ID",
