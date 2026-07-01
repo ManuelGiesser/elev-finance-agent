@@ -1,12 +1,13 @@
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.connectors.google_drive.service import GoogleDriveService
 from app.database.session import get_db
 from app.ocr.service import OCRService
 from app.repositories.document_repository import DocumentRepository
+from app.services.ocr_batch import OCRBatchService
 
 router = APIRouter(
     prefix="/ocr",
@@ -41,20 +42,11 @@ def ocr_document(
             detail="Document not found",
         )
 
-    if document.source != "google_drive":
-        raise HTTPException(
-            status_code=400,
-            detail="Only Google Drive documents are supported currently.",
-        )
-
-    if not document.external_id:
-        raise HTTPException(
-            status_code=400,
-            detail="Document has no external Google Drive file ID.",
-        )
-
     safe_filename = Path(document.filename).name
-    local_path = f"/tmp/elev-finance-agent/documents/{document.id}_{safe_filename}"
+    local_path = (
+        f"/tmp/elev-finance-agent/documents/"
+        f"{document.id}_{safe_filename}"
+    )
 
     GoogleDriveService().download_file(
         file_id=document.external_id,
@@ -77,3 +69,13 @@ def ocr_document(
         "ocr_status": updated.ocr_status,
         "text_preview": result.text[:500],
     }
+
+
+@router.post("/batch")
+def ocr_batch(
+    limit: int = Query(default=10, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    return OCRBatchService(db).process_new_documents(
+        limit=limit,
+    )

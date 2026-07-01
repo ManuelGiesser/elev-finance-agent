@@ -18,3 +18,7 @@ class DocumentResponse(BaseModel):
     model_config = {
         "from_attributes": True,
     }
+
+
+class DocumentDetailResponse(DocumentResponse):
+    ocr_text: str | None
