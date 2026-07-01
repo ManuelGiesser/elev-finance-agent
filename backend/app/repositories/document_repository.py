@@ -1,3 +1,4 @@
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.domain import Document
@@ -25,7 +26,36 @@ class DocumentRepository:
             .first()
         )
 
+    def get_by_status(self, status: str):
+        return (
+            self.db.query(Document)
+            .filter(Document.status == status)
+            .order_by(Document.modified_time.desc())
+            .all()
+        )
+
+    def stats(self):
+        total = self.db.query(func.count(Document.id)).scalar()
+
+        by_status = (
+            self.db.query(
+                Document.status,
+                func.count(Document.id),
+            )
+            .group_by(Document.status)
+            .all()
+        )
+
+        return {
+            "total": total,
+            "status": {
+                status: count
+                for status, count in by_status
+            },
+        }
+
     def create_if_missing(self, data: dict):
+
         existing = self.get_by_external_id(
             data["external_id"]
         )

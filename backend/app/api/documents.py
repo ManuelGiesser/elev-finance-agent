@@ -22,6 +22,26 @@ def list_documents(
 
 
 @router.get(
+    "/stats",
+)
+def document_stats(
+    db: Session = Depends(get_db),
+):
+    return DocumentRepository(db).stats()
+
+
+@router.get(
+    "/status/{status}",
+    response_model=list[DocumentResponse],
+)
+def documents_by_status(
+    status: str,
+    db: Session = Depends(get_db),
+):
+    return DocumentRepository(db).get_by_status(status)
+
+
+@router.get(
     "/{document_id}",
     response_model=DocumentResponse,
 )
