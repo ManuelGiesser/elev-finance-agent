@@ -54,6 +54,22 @@ class DocumentRepository:
             .all()
         )
 
+    def update_ocr_result(
+        self,
+        document: Document,
+        text: str,
+        status: str = "ocr_done",
+    ):
+        document.ocr_text = text
+        document.ocr_status = status
+        document.status = status
+
+        self.db.add(document)
+        self.db.commit()
+        self.db.refresh(document)
+
+        return document
+
     def stats(self):
         total = self.db.query(func.count(Document.id)).scalar()
 
@@ -88,7 +104,6 @@ class DocumentRepository:
         }
 
     def create_if_missing(self, data: dict):
-
         existing = self.get_by_external_id(
             data["external_id"]
         )

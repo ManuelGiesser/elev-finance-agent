@@ -1,6 +1,9 @@
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.connectors.google_drive.service import GoogleDriveService
 from app.database.session import get_db
 from app.ocr.service import OCRService
 from app.repositories.document_repository import DocumentRepository
@@ -29,7 +32,8 @@ def ocr_document(
     document_id: int,
     db: Session = Depends(get_db),
 ):
-    document = DocumentRepository(db).get(document_id)
+    repository = DocumentRepository(db)
+    document = repository.get(document_id)
 
     if document is None:
         raise HTTPException(
@@ -37,9 +41,39 @@ def ocr_document(
             detail="Document not found",
         )
 
+    if document.source != "google_drive":
+        raise HTTPException(
+            status_code=400,
+            detail="Only Google Drive documents are supported currently.",
+        )
+
+    if not document.external_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Document has no external Google Drive file ID.",
+        )
+
+    safe_filename = Path(document.filename).name
+    local_path = f"/tmp/elev-finance-agent/documents/{document.id}_{safe_filename}"
+
+    GoogleDriveService().download_file(
+        file_id=document.external_id,
+        target_path=local_path,
+    )
+
+    result = OCRService().extract_text(local_path)
+
+    updated = repository.update_ocr_result(
+        document=document,
+        text=result.text,
+        status="ocr_done",
+    )
+
     return {
-        "document_id": document.id,
-        "filename": document.filename,
-        "status": "download_not_implemented_yet",
-        "message": "Next step: download file from Google Drive before OCR.",
+        "document_id": updated.id,
+        "filename": updated.filename,
+        "engine": result.engine,
+        "confidence": result.confidence,
+        "ocr_status": updated.ocr_status,
+        "text_preview": result.text[:500],
     }
