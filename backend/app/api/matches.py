@@ -24,6 +24,19 @@ def list_matches(
     return MatchRepository(db).list()
 
 
+@router.get(
+    "/transaction/{transaction_id}",
+    response_model=list[MatchResponse],
+)
+def matches_for_transaction(
+    transaction_id: int,
+    db: Session = Depends(get_db),
+):
+    return MatchRepository(db).get_by_transaction_id(
+        transaction_id,
+    )
+
+
 @router.post(
     "/suggest/{transaction_id}/{document_id}",
     response_model=MatchResponse,
@@ -48,6 +61,18 @@ def suggest_match(
             detail="Document not found",
         )
 
+    confidence = MatchingService().score(
+        transaction=transaction,
+        document=document,
+    )
+
+    return MatchRepository(db).create(
+        transaction_id=transaction.id,
+        document_id=document.id,
+        confidence=confidence,
+        match_type="automatic",
+        status="proposed",
+    )
     confidence = MatchingService().score(
         transaction=transaction,
         document=document,

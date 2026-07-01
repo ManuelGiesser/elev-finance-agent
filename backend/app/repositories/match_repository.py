@@ -17,6 +17,17 @@ class MatchRepository:
             .all()
         )
 
+    def get_by_transaction_id(
+        self,
+        transaction_id: int,
+    ):
+        return (
+            self.db.query(Match)
+            .filter(Match.transaction_id == transaction_id)
+            .order_by(Match.confidence.desc())
+            .all()
+        )
+
     def create(
         self,
         transaction_id: int,
