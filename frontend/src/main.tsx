@@ -16,7 +16,7 @@ function App() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
 
   useEffect(() => {
-    fetch("http://localhost:8000/dashboard/summary")
+    fetch("http://78.46.162.115:8000/dashboard/summary")
       .then((response) => response.json())
       .then((data) => setSummary(data));
   }, []);
