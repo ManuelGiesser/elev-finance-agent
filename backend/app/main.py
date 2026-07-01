@@ -4,6 +4,7 @@ from app.api.ai import router as ai_router
 from app.api.documents import router as documents_router
 from app.api.matches import router as matches_router
 from app.api.ocr import router as ocr_router
+from app.api.transactions import router as transactions_router
 from app.config.settings import settings
 from app.connectors.google_drive.router import (
     router as google_drive_router,
@@ -32,3 +33,4 @@ app.include_router(documents_router)
 app.include_router(ocr_router)
 app.include_router(ai_router)
 app.include_router(matches_router)
+app.include_router(transactions_router)
