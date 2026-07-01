@@ -5,7 +5,10 @@ from sqlalchemy.orm import Session
 
 from app.database.session import get_db
 from app.repositories.document_repository import DocumentRepository
-from app.schemas.document import DocumentResponse
+from app.schemas.document import (
+    DocumentDetailResponse,
+    DocumentResponse,
+)
 
 router = APIRouter(
     prefix="/documents",
@@ -50,7 +53,7 @@ def documents_by_status(
 
 @router.get(
     "/{document_id}",
-    response_model=DocumentResponse,
+    response_model=DocumentDetailResponse,
 )
 def get_document(
     document_id: int,
