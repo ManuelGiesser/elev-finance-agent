@@ -73,15 +73,49 @@ def suggest_match(
         match_type="automatic",
         status="proposed",
     )
-    confidence = MatchingService().score(
-        transaction=transaction,
-        document=document,
+
+
+@router.post(
+    "/{match_id}/confirm",
+    response_model=MatchResponse,
+)
+def confirm_match(
+    match_id: int,
+    db: Session = Depends(get_db),
+):
+    repository = MatchRepository(db)
+    match = repository.get(match_id)
+
+    if match is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Match not found",
+        )
+
+    return repository.update_status(
+        match=match,
+        status="confirmed",
     )
 
-    return MatchRepository(db).create(
-        transaction_id=transaction.id,
-        document_id=document.id,
-        confidence=confidence,
-        match_type="automatic",
-        status="proposed",
+
+@router.post(
+    "/{match_id}/reject",
+    response_model=MatchResponse,
+)
+def reject_match(
+    match_id: int,
+    db: Session = Depends(get_db),
+):
+    repository = MatchRepository(db)
+    match = repository.get(match_id)
+
+    if match is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Match not found",
+        )
+
+    return repository.update_status(
+        match=match,
+        status="rejected",
     )

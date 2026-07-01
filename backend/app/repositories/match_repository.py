@@ -17,6 +17,9 @@ class MatchRepository:
             .all()
         )
 
+    def get(self, match_id: int):
+        return self.db.get(Match, match_id)
+
     def get_by_transaction_id(
         self,
         transaction_id: int,
@@ -43,6 +46,19 @@ class MatchRepository:
             match_type=match_type,
             status=status,
         )
+
+        self.db.add(match)
+        self.db.commit()
+        self.db.refresh(match)
+
+        return match
+
+    def update_status(
+        self,
+        match: Match,
+        status: str,
+    ):
+        match.status = status
 
         self.db.add(match)
         self.db.commit()
