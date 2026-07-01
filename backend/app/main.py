@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 
 from app.api.documents import router as documents_router
+from app.api.ocr import router as ocr_router
 from app.config.settings import settings
 from app.connectors.google_drive.router import (
     router as google_drive_router,
@@ -26,3 +27,4 @@ def health():
 
 app.include_router(google_drive_router)
 app.include_router(documents_router)
+app.include_router(ocr_router)
