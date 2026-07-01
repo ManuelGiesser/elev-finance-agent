@@ -1,4 +1,4 @@
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.models.domain import Document
@@ -9,10 +9,30 @@ class DocumentRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def list(self):
+    def list(
+        self,
+        limit: int = 100,
+        offset: int = 0,
+        query: str | None = None,
+    ):
+        db_query = self.db.query(Document)
+
+        if query:
+            search = f"%{query}%"
+            db_query = db_query.filter(
+                or_(
+                    Document.filename.ilike(search),
+                    Document.mime_type.ilike(search),
+                    Document.folder.ilike(search),
+                    Document.status.ilike(search),
+                )
+            )
+
         return (
-            self.db.query(Document)
+            db_query
             .order_by(Document.modified_time.desc())
+            .offset(offset)
+            .limit(limit)
             .all()
         )
 
@@ -46,11 +66,24 @@ class DocumentRepository:
             .all()
         )
 
+        by_folder = (
+            self.db.query(
+                Document.folder,
+                func.count(Document.id),
+            )
+            .group_by(Document.folder)
+            .all()
+        )
+
         return {
             "total": total,
             "status": {
                 status: count
                 for status, count in by_status
+            },
+            "folder": {
+                folder: count
+                for folder, count in by_folder
             },
         }
 

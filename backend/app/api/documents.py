@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
@@ -16,14 +18,19 @@ router = APIRouter(
     response_model=list[DocumentResponse],
 )
 def list_documents(
+    limit: int = Query(default=100, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
+    query: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
-    return DocumentRepository(db).list()
+    return DocumentRepository(db).list(
+        limit=limit,
+        offset=offset,
+        query=query,
+    )
 
 
-@router.get(
-    "/stats",
-)
+@router.get("/stats")
 def document_stats(
     db: Session = Depends(get_db),
 ):
