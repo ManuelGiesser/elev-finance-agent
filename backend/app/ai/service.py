@@ -1,11 +1,11 @@
 from app.ai.base import InvoiceAnalysisResult
-from app.ai.mock import MockAIAnalyzer
+from app.ai.rules import RuleBasedAIAnalyzer
 
 
 class AIAnalysisService:
 
     def __init__(self):
-        self.analyzer = MockAIAnalyzer()
+        self.analyzer = RuleBasedAIAnalyzer()
 
     def analyze_invoice_text(
         self,

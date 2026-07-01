@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.ai.service import AIAnalysisService
@@ -8,6 +8,7 @@ from app.repositories.invoice_analysis_repository import (
     InvoiceAnalysisRepository,
 )
 from app.schemas.invoice_analysis import InvoiceAnalysisResponse
+from app.services.ai_batch import AIBatchService
 
 router = APIRouter(
     prefix="/ai",
@@ -69,9 +70,23 @@ def analyze_document(
         engine=service.analyzer.name,
     )
 
+    document.status = "analyzed"
+    db.add(document)
+    db.commit()
+
     return {
         "document_id": document.id,
         "filename": document.filename,
         "analysis_id": analysis.id,
         "analysis": result.__dict__,
     }
+
+
+@router.post("/batch")
+def analyze_batch(
+    limit: int = Query(default=10, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    return AIBatchService(db).analyze_ocr_done_documents(
+        limit=limit,
+    )
