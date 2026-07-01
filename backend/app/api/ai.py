@@ -7,11 +7,35 @@ from app.repositories.document_repository import DocumentRepository
 from app.repositories.invoice_analysis_repository import (
     InvoiceAnalysisRepository,
 )
+from app.schemas.invoice_analysis import InvoiceAnalysisResponse
 
 router = APIRouter(
     prefix="/ai",
     tags=["AI"],
 )
+
+
+@router.get(
+    "/analyses",
+    response_model=list[InvoiceAnalysisResponse],
+)
+def list_analyses(
+    db: Session = Depends(get_db),
+):
+    return InvoiceAnalysisRepository(db).list()
+
+
+@router.get(
+    "/documents/{document_id}/analyses",
+    response_model=list[InvoiceAnalysisResponse],
+)
+def document_analyses(
+    document_id: int,
+    db: Session = Depends(get_db),
+):
+    return InvoiceAnalysisRepository(db).get_by_document_id(
+        document_id,
+    )
 
 
 @router.post("/documents/{document_id}/analyze")

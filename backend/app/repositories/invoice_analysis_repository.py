@@ -18,6 +18,24 @@ class InvoiceAnalysisRepository:
     def __init__(self, db: Session):
         self.db = db
 
+    def list(self):
+        return (
+            self.db.query(InvoiceAnalysis)
+            .order_by(InvoiceAnalysis.created_at.desc())
+            .all()
+        )
+
+    def get_by_document_id(
+        self,
+        document_id: int,
+    ):
+        return (
+            self.db.query(InvoiceAnalysis)
+            .filter(InvoiceAnalysis.document_id == document_id)
+            .order_by(InvoiceAnalysis.created_at.desc())
+            .all()
+        )
+
     def create(
         self,
         document_id: int,
